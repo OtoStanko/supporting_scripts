@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import networkx as nx
 import random as rndm
-import converters as conv
+#import converters as conv
 #from sympy import symbols, true, false
 #from sympy.logic import And, Or, Not, simplify_logic
 from z3 import *
@@ -130,6 +130,11 @@ def create_update_functions_from_rules(rules):
     return functions
 
 
+def shuffle_argumentsOfUpdate_rules(update_rules):
+    for i in range(len(update_rules)):
+        rndm.shuffle(update_rules[i])
+
+
 def simulation(rules, initial_state, const=None, value=None):
     visited = [initial_state]
     n_nodes = len(rules)
@@ -163,119 +168,108 @@ def simulation(rules, initial_state, const=None, value=None):
             Create random network with random update functions
 """
 
-n=100
-m=2
-p=0.6
 
-# generate undirected scale-free graph using barabasi-albert model
-G = nx.dual_barabasi_albert_graph(n=n, m1=m-1, m2=m, p=p, initial_graph=nx.complete_graph(m+2))
+def run():
+    
+    n=5
+    m=2
+    p=0.6
 
-# create empty directed graph
-H = nx.DiGraph()
-# add all nodes from undirected graph to the new one
-H.add_nodes_from(G)
+    # generate undirected scale-free graph using barabasi-albert model
+    G = nx.dual_barabasi_albert_graph(n=n, m1=m-1, m2=m, p=p, initial_graph=nx.complete_graph(m+2))
 
-# create table of update rules represented as list of lists of tuples
-rules = [[] for _ in range(H.number_of_nodes())]  # [[(node_index, Im, Om)]]
+    # create empty directed graph
+    H = nx.DiGraph()
+    # add all nodes from undirected graph to the new one
+    H.add_nodes_from(G)
 
-# for each edge before putting it into the directed graph
-#    randomly choose direction of the new edge
-# specify Im and Om to the update rules -> randomly generate Im and Om
-for edge in G.edges():
-    s, t = edge
-    Im = int(2*rndm.random())
-    Om = int(2*rndm.random())
-    if rndm.random() < 0.5:
-        H.add_edge(s, t)
-        rules[t].append((s, Im, Om))
-    else:
-        H.add_edge(t, s)
-        rules[s].append((t, Im, Om))
+    # create table of update rules represented as list of lists of tuples
+    rules = [[] for _ in range(H.number_of_nodes())]  # [[(node_index, Im, Om)]]
+
+    # for each edge before putting it into the directed graph
+    #    randomly choose direction of the new edge
+    # specify Im and Om to the update rules -> randomly generate Im and Om
+    for edge in G.edges():
+        s, t = edge
+        Im = int(2*rndm.random())
+        Om = int(2*rndm.random())
+        if rndm.random() < 0.5:
+            H.add_edge(s, t)
+            rules[t].append((s, Im, Om))
+        else:
+            H.add_edge(t, s)
+            rules[s].append((t, Im, Om))
+    shuffle_argumentsOfUpdate_rules(rules)
 
 
-funs = create_update_function_stm(rules)
+    funs = create_update_function_stm(rules)
+    other_funs = create_update_functions_from_rules(rules)
 
-other_funs = create_update_functions_from_rules(rules)
+    n = [Bool("n" + str(i)) for i in range(H.number_of_nodes())]
+    # append \n at the end of each functions. Needed for conversion into the boolesim format
+    for i in range(len(funs)):
+        print(funs[i])
+        #funs[i] = funs[i] + '\n'
+    print()
+    for i in range(len(funs)):
+        print(other_funs[i])
+    print()
+    for i in range(len(funs)):
+        print(rules[i])
 
-
-n = [Bool("n" + str(i)) for i in range(H.number_of_nodes())]
-# append \n at the end of each functions. Needed for conversion into the boolesim format
-for i in range(len(funs)):
-    print(funs[i])
-    #funs[i] = funs[i] + '\n'
-print()
-for i in range(len(funs)):
-    print(other_funs[i])
-print()
-for i in range(len(funs)):
-    print(rules[i])
-
-# conv.file_converter_data(funs, "boolesim")  # does not work as long as % and | are used
+    initial_state = find_steady_state(funs)
+    matrix = generate_steady_state_matrix(initial_state, rules)
+    write_matrix_to_file(matrix, file_path)
 
 
 """
             Find steady-state
 """
+def find_steady_state(funs):
+    initial_state = []
+    s = Solver()
+    for fun in funs:
+        if fun[-1] != "=":
+            s.add(eval(fun))
+    if s.check() == sat:
+        model = s.model()  # model - steady state
+        for node in n:
+            initial_state.append(model[node])
+            #print(str(node) + " = " + str(model[node]))
+    else:
+        print("Steady state does not exist")
+    initial_state = [1 if is_true(i) else 0 for i in initial_state]
+    print(initial_state)
+    
+    return initial_state
 
-
-# generate list of strong components
-# strong_components = [c for c in sorted(nx.strongly_connected_components(H), key=len, reverse=True)]
-
-"""# identify input nodes
-input_nodes = []
-for comp in strong_components:
-    for node in comp:
-        if rules[node] == []:
-            input_nodes.append(node)"""
-"""print()
-for i in exa_funs:
-    print(i)
-print(exa_input_nodes)
-print(exa_strong_components)
-"""
-
-# do_stuff(exa_strong_components, exa_funs, exa_input_nodes)
-initial_state = []
-s = Solver()
-for fun in funs:
-    if fun[-1] != "=":
-        s.add(eval(fun))
-if s.check() == sat:
-    model = s.model()  # model - steady state
-    for node in n:
-        initial_state.append(model[node])
-        #print(str(node) + " = " + str(model[node]))
-else:
-    print("Steady state does not exist")
-
-print(initial_state)
 
 # nx.draw(H, with_labels=True)
 # plt.show()
-
-
 """
             Generate steady-state matrix
 """
+def generate_steady_state_matrix(initial_state, rules):
+    tuple_initial_state = tuple(initial_state)
+    matrix = [tuple_initial_state]
+    if initial_state != []:
+        for i in range(len(initial_state)):
+            matrix.append(simulation(rules, tuple_initial_state,
+                                     i, 1*(1-initial_state[i]))[-1])
+    return matrix
 
-initial_state = [1 if is_true(i) else 0 for i in initial_state]
-tuple_initial_state = tuple(initial_state)
-matrix = [tuple_initial_state]
-if initial_state != []:
-    for i in range(len(initial_state)):
-        matrix.append(simulation(rules, tuple_initial_state,
-                                 i, 1*(1-initial_state[i]))[-1])
 
 """
             write matrix to the file
 """
+file_path = r"D:\MUNI\FI\bc\supporting_scripts\output_matrix.csv"
 
-file_path = r"D:\MUNI\FI\bc\bachelors-work\output_matrix.csv"
-index = -1
-with open(file_path, "w") as f:
-    for line in matrix:
-        print(str(index) + ", " + str(line)[1:-1], file=f)
-        index += 1
+def write_matrix_to_file(matrix, file_path):
+    index = -1
+    with open(file_path, "w") as f:
+        for line in matrix:
+            print(str(index) + ", " + str(line)[1:-1], file=f)
+            index += 1
 # cycle = simulation(rules, tuple_initial_state)[-1]
 # print(len(cycle), cycle)
 # print(tuple(initial_state) == cycle[0])
