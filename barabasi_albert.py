@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import networkx as nx
 import random as rndm
+import re
 #import converters as conv
 #from sympy import symbols, true, false
 #from sympy.logic import And, Or, Not, simplify_logic
@@ -11,6 +12,7 @@ from z3 import *
 """
 example set of update functions
 """
+'''
 exa_funs = ["n0 = n1 & (n3 | (n4 & n8))", "n1 = ~ n2", "n2 = ~ n0", "n3 = n1 & ~ n2",
             "n4 = n5 & n9", "n5 =", "n6 = ~ n1", "n7 = n1", "n8 = ~ n1", "n9 ="]
 
@@ -28,7 +30,7 @@ exa_strong_components = [{9}, {5}, {4}, {0, 1, 2, 3, 8}, {6}, {7}]
 exa_funs_simple = ["A = A", "B = A", "C = ~A", "D = A",
                    "E = F & J", "F =", "G = ~A", "H = A", "I = ~A", "J ="]
 exa_input_nodes = [5, 9]
-exa_output_nodes = [6, 7]
+exa_output_nodes = [6, 7]'''
 
 
 
@@ -169,14 +171,38 @@ def simulation(rules, initial_state, const=None, value=None):
 """
 
 
-def run():
-    
-    n=5
+"""
+node_sizes - list/range of sizes of networks to create e.g. [10, 20, 30, 40, 50]
+number_of_networks_per_size - number of networks to create of given number of nodes
+                              should be as long as node_sizes
+"""
+file_path = r"D:\MUNI\FI\bc\supporting_scripts"
+# run([5, 11], [1, 2], r"D:\MUNI\FI\bc\supporting_scripts")
+def run(node_sizes, number_of_networks_per_size, output_directory_path=None):
+
+    if len(node_sizes) != len(number_of_networks_per_size):
+        print("node sizes and numbers of networks is not equally long")
+        return
+
+    for i in range(len(node_sizes)):
+        size = node_sizes[i]
+        number_of_networks = number_of_networks_per_size[i]
+        for j in range(number_of_networks):
+            file_path = output_directory_path + "\\size" + str(size) + "_n" + str(j)
+            #print(file_path)
+            create_barabasi_albert_network(size, file_path)
+
+
+def create_barabasi_albert_network(number_of_nodes, file_path):
     m=2
     p=0.6
 
     # generate undirected scale-free graph using barabasi-albert model
-    G = nx.dual_barabasi_albert_graph(n=n, m1=m-1, m2=m, p=p, initial_graph=nx.complete_graph(m+2))
+    # n - number of nodes on the network
+    # m1 - number of edges added from every new node with P = p
+    # m2 - number of edges added from every new node with P = 1-p
+    G = nx.dual_barabasi_albert_graph(n=number_of_nodes,
+                                      m1=m-1, m2=m, p=p, initial_graph=nx.complete_graph(m+2))
 
     # create empty directed graph
     H = nx.DiGraph()
@@ -206,7 +232,7 @@ def run():
     other_funs = create_update_functions_from_rules(rules)
 
     n = [Bool("n" + str(i)) for i in range(H.number_of_nodes())]
-    # append \n at the end of each functions. Needed for conversion into the boolesim format
+    """# append \n at the end of each functions. Needed for conversion into the boolesim format
     for i in range(len(funs)):
         print(funs[i])
         #funs[i] = funs[i] + '\n'
@@ -215,17 +241,21 @@ def run():
         print(other_funs[i])
     print()
     for i in range(len(funs)):
-        print(rules[i])
+        print(rules[i])"""
 
-    initial_state = find_steady_state(funs)
+    initial_state = find_steady_state(funs, n)
+    if initial_state is None:
+        return
     matrix = generate_steady_state_matrix(initial_state, rules)
-    write_matrix_to_file(matrix, file_path)
+    write_graph_to_file(funs, file_path + "original_network.txt")
+    write_matrix_to_file(matrix, file_path + "_output_matrix.csv")
+    # end of run()
 
 
 """
             Find steady-state
 """
-def find_steady_state(funs):
+def find_steady_state(funs, n):
     initial_state = []
     s = Solver()
     for fun in funs:
@@ -238,8 +268,8 @@ def find_steady_state(funs):
             #print(str(node) + " = " + str(model[node]))
     else:
         print("Steady state does not exist")
+        return None
     initial_state = [1 if is_true(i) else 0 for i in initial_state]
-    print(initial_state)
     
     return initial_state
 
@@ -260,16 +290,28 @@ def generate_steady_state_matrix(initial_state, rules):
 
 
 """
-            write matrix to the file
+            write matrix and graph to the files
 """
-file_path = r"D:\MUNI\FI\bc\supporting_scripts\output_matrix.csv"
-
 def write_matrix_to_file(matrix, file_path):
     index = -1
     with open(file_path, "w") as f:
         for line in matrix:
             print(str(index) + ", " + str(line)[1:-1], file=f)
             index += 1
+
+
+def write_graph_to_file(funs, file_path):
+    with open(file_path, "w") as f:
+        for fun in funs:
+            neg = re.findall(r'Not\(n\[(\d*)\]\)', fun)
+            pos = re.findall(r'n\[(\d*)\]', fun)
+            tg = pos[0]
+            for sg in neg:
+                print(str(sg) + "   " + str(tg) + " " + "-", file=f)
+            for sg in pos[1:]:
+                if sg not in neg:
+                    print(str(sg) + "   " + str(tg) + " " + "+", file=f)
+            
 # cycle = simulation(rules, tuple_initial_state)[-1]
 # print(len(cycle), cycle)
 # print(tuple(initial_state) == cycle[0])
