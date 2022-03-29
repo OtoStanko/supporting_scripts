@@ -191,6 +191,7 @@ def run(node_sizes, number_of_networks_per_size, output_directory_path=None):
             file_path = output_directory_path + "\\size" + str(size) + "_n" + str(j)
             #print(file_path)
             create_barabasi_albert_network(size, file_path)
+    # end of run()
 
 
 def create_barabasi_albert_network(number_of_nodes, file_path):
@@ -232,16 +233,6 @@ def create_barabasi_albert_network(number_of_nodes, file_path):
     other_funs = create_update_functions_from_rules(rules)
 
     n = [Bool("n" + str(i)) for i in range(H.number_of_nodes())]
-    """# append \n at the end of each functions. Needed for conversion into the boolesim format
-    for i in range(len(funs)):
-        print(funs[i])
-        #funs[i] = funs[i] + '\n'
-    print()
-    for i in range(len(funs)):
-        print(other_funs[i])
-    print()
-    for i in range(len(funs)):
-        print(rules[i])"""
 
     initial_state = find_steady_state(funs, n)
     if initial_state is None:
@@ -249,7 +240,6 @@ def create_barabasi_albert_network(number_of_nodes, file_path):
     matrix = generate_steady_state_matrix(initial_state, rules)
     write_graph_to_file(funs, file_path + "original_network.txt")
     write_matrix_to_file(matrix, file_path + "_output_matrix.csv")
-    # end of run()
 
 
 """
