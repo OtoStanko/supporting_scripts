@@ -161,6 +161,7 @@ def simulation(rules, initial_state, const=None, value=None):
                 new_state.append( 1*((1 - rules[i][-1][2]) == True) )
         new_state_tuple = tuple(new_state)
         if new_state_tuple in visited:
+            visited.append(new_state_tuple)
             return visited
         visited.append(new_state_tuple)
         actual_state = new_state_tuple
@@ -176,8 +177,8 @@ node_sizes - list/range of sizes of networks to create e.g. [10, 20, 30, 40, 50]
 number_of_networks_per_size - number of networks to create of given number of nodes
                               should be as long as node_sizes
 """
-file_path = r"D:\MUNI\FI\bc\supporting_scripts"
-# run([5, 11], [1, 2], r"D:\MUNI\FI\bc\supporting_scripts")
+file_path = r"D:\MUNI\FI\_bc\supporting_scripts"
+# run([5, 11], [1, 2], r"D:\MUNI\FI\_bc\supporting_scripts")
 def run(node_sizes, number_of_networks_per_size, output_directory_path=None):
 
     if len(node_sizes) != len(number_of_networks_per_size):
@@ -271,11 +272,18 @@ def find_steady_state(funs, n):
 """
 def generate_steady_state_matrix(initial_state, rules):
     tuple_initial_state = tuple(initial_state)
-    matrix = [tuple_initial_state]
+    matrix = [ (-1, tuple_initial_state) ]
     if initial_state != []:
         for i in range(len(initial_state)):
-            matrix.append(simulation(rules, tuple_initial_state,
-                                     i, 1*(1-initial_state[i]))[-1])
+            simulation_path = simulation(rules,
+                                         tuple_initial_state,
+                                         i,
+                                         1*(1-initial_state[i]))
+            #print(simulation_path)
+            if simulation_path[-1] == simulation_path[-2]:
+                matrix.append( (i, simulation_path[-1]) )
+            else:
+                print("There exists cycle, but not sink")
     return matrix
 
 
@@ -283,11 +291,9 @@ def generate_steady_state_matrix(initial_state, rules):
             write matrix and graph to the files
 """
 def write_matrix_to_file(matrix, file_path):
-    index = -1
     with open(file_path, "w") as f:
-        for line in matrix:
+        for index, line in matrix:
             print(str(index) + ", " + str(line)[1:-1], file=f)
-            index += 1
 
 
 def write_graph_to_file(funs, file_path):
