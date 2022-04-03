@@ -8,7 +8,6 @@ import re
 from z3 import *
 
 
-
 """
 example set of update functions
 """
@@ -58,13 +57,6 @@ def close_function(function: str):
 
 
 """
-rules - list of lists of tuples - [[(node_index, Im, Om)]]
-        list of n lists corresponding to n nodes in network
-        each inner list consists of tuples
-        each tuple represents input node, Im an Om - rule in NCF form
-"""
-
-"""
 part_fun - update rule in form of a list of tuples
 
 return string representing update function in a form that sat z3-solver can process
@@ -90,7 +82,10 @@ def build_up_fun_rec(part_fun):
 
 
 """
-part_fun - lis of update rules, each in form of a list of tuples
+rules - list of lists of tuples - [[(node_index, Im, Om)]]
+        list of n lists corresponding to n nodes in network
+        each inner list consists of tuples
+        each tuple represents input node, Im an Om - rule in NCF form
 
 returns list of strings representing update functions in a form that sat z3-solver can process
 """
@@ -209,13 +204,13 @@ def run(node_sizes, number_of_networks_per_size, output_directory_path=None):
 
 def create_scale_free_network_with_rules(number_of_nodes):
     m=2
-    p=0.6
-
     # generate directed scale-free graph
     H = scale_free_graph(number_of_nodes, alpha=0.41,
                          beta=0.54, gamma=0.05, delta_in=0.2,
                          delta_out=0, create_using=None,
                          seed=None)
+    # above function generates duplicate edges as well as self-loops
+    # these need to be removed
     edges_count = {}
     for edge in H.edges():
         edges_count[edge] = edges_count.get(edge, 0) + 1
@@ -227,26 +222,15 @@ def create_scale_free_network_with_rules(number_of_nodes):
             H.remove_edge(s, t)
     # create table of update rules represented as list of lists of tuples
     rules = [[] for _ in range(H.number_of_nodes())]  # [[(node_index, Im, Om)]]
-
     # specify Im and Om to the update rules -> randomly generate Im and Om
     for edge in H.edges():
         s, t = edge
         Im = int(2*random())
         Om = int(2*random())
         rules[t].append((s, Im, Om))
-    """for edge in G.edges():
-        s, t = edge
-        Im = int(2*rndm.random())
-        Om = int(2*rndm.random())
-        if rndm.random() < 0.5:
-            H.add_edge(s, t)
-            rules[t].append((s, Im, Om))
-        else:
-            H.add_edge(t, s)
-            rules[s].append((t, Im, Om))"""
     shuffle_argumentsOfUpdate_rules(rules)
-    draw(H, with_labels=True)
-    plt.show()
+    # draw(H, with_labels=True)
+    # plt.show()
     return H, rules
 
 
@@ -260,7 +244,7 @@ def find_steady_state(funs, n):
         if fun[-1] != "=":
             s.add(eval(fun))
     if s.check() == sat:
-        model = s.model()  # model - steady state
+        model = s.model()  # model = steady state
         for node in n:
             initial_state.append(model[node])
             #print(str(node) + " = " + str(model[node]))
@@ -301,6 +285,7 @@ def write_matrix_to_file(matrix, file_path):
             print(str(index) + ", " + str(line)[1:-1], file=f)
 
 
+# writing graph's topology to the file given by path
 def write_graph_to_file(funs, file_path):
     with open(file_path, "w") as f:
         for fun in funs:
