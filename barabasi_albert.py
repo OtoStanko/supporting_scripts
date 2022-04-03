@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from networkx import scale_free_graph
+from networkx import scale_free_graph, draw
 from random import shuffle, random
 import re
 #import converters as conv
@@ -191,7 +191,7 @@ def run(node_sizes, number_of_networks_per_size, output_directory_path=None):
         for j in range(number_of_networks):
             file_path = output_directory_path + "\\size" + str(size) + "_n" + str(j)
             #print(file_path)
-            H, rules = create_scale_free_network_with_rules(size, file_path)
+            H, rules = create_scale_free_network_with_rules(size)
 
             funs = create_update_function_stm(rules)
             other_funs = create_update_functions_from_rules(rules)
@@ -207,32 +207,27 @@ def run(node_sizes, number_of_networks_per_size, output_directory_path=None):
     # end of run()
 
 
-def create_scale_free_network_with_rules(number_of_nodes, file_path):
+def create_scale_free_network_with_rules(number_of_nodes):
     m=2
     p=0.6
 
-    # generate undirected scale-free graph using barabasi-albert model
-    # n - number of nodes on the network
-    # m1 - number of edges added from every new node with P = p
-    # m2 - number of edges added from every new node with P = 1-p
-    """G = nx.dual_barabasi_albert_graph(n=number_of_nodes,
-                                      m1=m-1, m2=m, p=p,
-                                      initial_graph=nx.complete_graph(m+2))"""
+    # generate directed scale-free graph
     H = scale_free_graph(number_of_nodes, alpha=0.41,
                          beta=0.54, gamma=0.05, delta_in=0.2,
                          delta_out=0, create_using=None,
                          seed=None)
-
-    """# create empty directed graph
-    H = nx.DiGraph()
-    # add all nodes from undirected graph to the new one
-    H.add_nodes_from(G)"""
-
+    edges_count = {}
+    for edge in H.edges():
+        edges_count[edge] = edges_count.get(edge, 0) + 1
+    for edge, n in edges_count.items():
+        s, t = edge
+        for _ in range(n-1):
+            H.remove_edge(s, t)
+        if s == t:
+            H.remove_edge(s, t)
     # create table of update rules represented as list of lists of tuples
     rules = [[] for _ in range(H.number_of_nodes())]  # [[(node_index, Im, Om)]]
 
-    # for each edge before putting it into the directed graph
-    #    randomly choose direction of the new edge
     # specify Im and Om to the update rules -> randomly generate Im and Om
     for edge in H.edges():
         s, t = edge
@@ -250,6 +245,8 @@ def create_scale_free_network_with_rules(number_of_nodes, file_path):
             H.add_edge(t, s)
             rules[s].append((t, Im, Om))"""
     shuffle_argumentsOfUpdate_rules(rules)
+    draw(H, with_labels=True)
+    plt.show()
     return H, rules
 
 
@@ -275,8 +272,6 @@ def find_steady_state(funs, n):
     return initial_state
 
 
-# nx.draw(H, with_labels=True)
-# plt.show()
 """
             Generate steady-state matrix
 """
