@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
-import networkx as nx
-import random as rndm
+from networkx import scale_free_graph
+from random import shuffle, random
 import re
 #import converters as conv
 #from sympy import symbols, true, false
@@ -134,7 +134,7 @@ def create_update_functions_from_rules(rules):
 
 def shuffle_argumentsOfUpdate_rules(update_rules):
     for i in range(len(update_rules)):
-        rndm.shuffle(update_rules[i])
+        shuffle(update_rules[i])
 
 
 def simulation(rules, initial_state, const=None, value=None):
@@ -191,11 +191,23 @@ def run(node_sizes, number_of_networks_per_size, output_directory_path=None):
         for j in range(number_of_networks):
             file_path = output_directory_path + "\\size" + str(size) + "_n" + str(j)
             #print(file_path)
-            create_barabasi_albert_network(size, file_path)
+            H, rules = create_scale_free_network_with_rules(size, file_path)
+
+            funs = create_update_function_stm(rules)
+            other_funs = create_update_functions_from_rules(rules)
+
+            n = [Bool("n" + str(i)) for i in range(H.number_of_nodes())]
+
+            initial_state = find_steady_state(funs, n)
+            if initial_state is None:
+                return
+            matrix = generate_steady_state_matrix(initial_state, rules)
+            write_graph_to_file(funs, file_path + "original_network.txt")
+            write_matrix_to_file(matrix, file_path + "_output_matrix.csv")
     # end of run()
 
 
-def create_barabasi_albert_network(number_of_nodes, file_path):
+def create_scale_free_network_with_rules(number_of_nodes, file_path):
     m=2
     p=0.6
 
@@ -203,13 +215,18 @@ def create_barabasi_albert_network(number_of_nodes, file_path):
     # n - number of nodes on the network
     # m1 - number of edges added from every new node with P = p
     # m2 - number of edges added from every new node with P = 1-p
-    G = nx.dual_barabasi_albert_graph(n=number_of_nodes,
-                                      m1=m-1, m2=m, p=p, initial_graph=nx.complete_graph(m+2))
+    """G = nx.dual_barabasi_albert_graph(n=number_of_nodes,
+                                      m1=m-1, m2=m, p=p,
+                                      initial_graph=nx.complete_graph(m+2))"""
+    H = scale_free_graph(number_of_nodes, alpha=0.41,
+                         beta=0.54, gamma=0.05, delta_in=0.2,
+                         delta_out=0, create_using=None,
+                         seed=None)
 
-    # create empty directed graph
+    """# create empty directed graph
     H = nx.DiGraph()
     # add all nodes from undirected graph to the new one
-    H.add_nodes_from(G)
+    H.add_nodes_from(G)"""
 
     # create table of update rules represented as list of lists of tuples
     rules = [[] for _ in range(H.number_of_nodes())]  # [[(node_index, Im, Om)]]
@@ -217,7 +234,12 @@ def create_barabasi_albert_network(number_of_nodes, file_path):
     # for each edge before putting it into the directed graph
     #    randomly choose direction of the new edge
     # specify Im and Om to the update rules -> randomly generate Im and Om
-    for edge in G.edges():
+    for edge in H.edges():
+        s, t = edge
+        Im = int(2*random())
+        Om = int(2*random())
+        rules[t].append((s, Im, Om))
+    """for edge in G.edges():
         s, t = edge
         Im = int(2*rndm.random())
         Om = int(2*rndm.random())
@@ -226,21 +248,9 @@ def create_barabasi_albert_network(number_of_nodes, file_path):
             rules[t].append((s, Im, Om))
         else:
             H.add_edge(t, s)
-            rules[s].append((t, Im, Om))
+            rules[s].append((t, Im, Om))"""
     shuffle_argumentsOfUpdate_rules(rules)
-
-
-    funs = create_update_function_stm(rules)
-    other_funs = create_update_functions_from_rules(rules)
-
-    n = [Bool("n" + str(i)) for i in range(H.number_of_nodes())]
-
-    initial_state = find_steady_state(funs, n)
-    if initial_state is None:
-        return
-    matrix = generate_steady_state_matrix(initial_state, rules)
-    write_graph_to_file(funs, file_path + "original_network.txt")
-    write_matrix_to_file(matrix, file_path + "_output_matrix.csv")
+    return H, rules
 
 
 """
@@ -283,7 +293,7 @@ def generate_steady_state_matrix(initial_state, rules):
             if simulation_path[-1] == simulation_path[-2]:
                 matrix.append( (i, simulation_path[-1]) )
             else:
-                print("There exists cycle, but not sink")
+                print("There exists cycle, but not a sink")
     return matrix
 
 
