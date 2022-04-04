@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from networkx import scale_free_graph, draw
+from networkx import scale_free_graph, draw, dual_barabasi_albert, complete_graph, DiGraph
 from random import shuffle, random
 import re
 #import converters as conv
@@ -201,25 +201,44 @@ def run(node_sizes, number_of_networks_per_size, output_directory_path=None):
             write_matrix_to_file(matrix, file_path + "_output_matrix.csv")
     # end of run()
 
-
-def create_scale_free_network_with_rules(number_of_nodes):
+"""
+number_of_nodes - number of nodes in the generated network
+method          - method used for generation of scale-free network
+                    scf - basic scale_free_graph - produces directed graph
+                    ba  - Barabasi-Albert model  - produces undirected graph
+                                                   for each edge, direction
+                                                   is randomly chosen
+"""
+def create_scale_free_network_with_rules(number_of_nodes, method="scf"):
     m=2
-    # generate directed scale-free graph
-    H = scale_free_graph(number_of_nodes, alpha=0.41,
-                         beta=0.54, gamma=0.05, delta_in=0.2,
-                         delta_out=0, create_using=None,
-                         seed=None)
-    # above function generates duplicate edges as well as self-loops
-    # these need to be removed
-    edges_count = {}
-    for edge in H.edges():
-        edges_count[edge] = edges_count.get(edge, 0) + 1
-    for edge, n in edges_count.items():
+    if method == "scf":
+        # generate directed scale-free graph
+        H = scale_free_graph(number_of_nodes, alpha=0.41,
+                             beta=0.54, gamma=0.05, delta_in=0.2,
+                             delta_out=0, create_using=None,
+                             seed=None)
+        # above function generates duplicate edges as well as self-loops
+        # these need to be removed
+        edges_count = {}
+        for edge in H.edges():
+            edges_count[edge] = edges_count.get(edge, 0) + 1
+        for edge, n in edges_count.items():
+            s, t = edge
+            for _ in range(n-1):
+                H.remove_edge(s, t)
+            if s == t:
+                H.remove_edge(s, t)
+    elif method == "ba":
+        G = dual_barabasi_albert(number_of_nodes, m1=m, m2=1, p=0.6,
+                                 initial_graph=complete_graph(m+2)))
+        H = DiGraph()
+        H.add_nodes_from(G)
+        for edge in G.edges():
         s, t = edge
-        for _ in range(n-1):
-            H.remove_edge(s, t)
-        if s == t:
-            H.remove_edge(s, t)
+        if random() < 0.5:
+            H.add_edge(s, t)
+        else:
+            H.add_edge(t, s)
     # create table of update rules represented as list of lists of tuples
     rules = [[] for _ in range(H.number_of_nodes())]  # [[(node_index, Im, Om)]]
     # specify Im and Om to the update rules -> randomly generate Im and Om
