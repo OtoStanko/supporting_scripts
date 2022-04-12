@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
-from networkx import scale_free_graph, draw, dual_barabasi_albert, complete_graph, DiGraph
+from networkx import scale_free_graph, draw, dual_barabasi_albert_graph, complete_graph, DiGraph
 from random import shuffle, random
 import re
+import sys
 #import converters as conv
 #from sympy import symbols, true, false
 #from sympy.logic import And, Or, Not, simplify_logic
@@ -168,30 +169,31 @@ def simulation(rules, initial_state, const=None, value=None):
 
 
 """
-node_sizes - list/range of sizes of networks to create e.g. [10, 20, 30, 40, 50]
+network_sizes - list/range of sizes of networks to create e.g. [10, 20, 30, 40, 50]
 number_of_networks_per_size - number of networks to create of given number of nodes
-                              should be as long as node_sizes
+                              should be as long as network_sizes
 """
 file_path = r"D:\MUNI\FI\_bc\supporting_scripts"
 # run([5, 11], [1, 2], r"D:\MUNI\FI\_bc\supporting_scripts")
-def run(node_sizes, number_of_networks_per_size, output_directory_path=None):
+def run(network_sizes, number_of_networks_per_size, output_directory_path=None):
 
-    if len(node_sizes) != len(number_of_networks_per_size):
+    if len(network_sizes) != len(number_of_networks_per_size):
         print("node sizes and numbers of networks is not equally long")
-        return
+        return 1
 
-    for i in range(len(node_sizes)):
-        size = node_sizes[i]
+    for i in range(len(network_sizes)):
+        size = network_sizes[i]
         number_of_networks = number_of_networks_per_size[i]
         for j in range(number_of_networks):
             file_path = output_directory_path + "\\size" + str(size) + "_n" + str(j)
             #print(file_path)
-            H, rules = create_scale_free_network_with_rules(size)
+            H = create_scale_free_network(size)
+            rules = generate_rules(H)
+            n = [Bool("n" + str(i)) for i in range(H.number_of_nodes())]
 
             funs = create_update_function_stm(rules)
             other_funs = create_update_functions_from_rules(rules)
 
-            n = [Bool("n" + str(i)) for i in range(H.number_of_nodes())]
 
             initial_state = find_steady_state(funs, n)
             if initial_state is None:
@@ -199,6 +201,7 @@ def run(node_sizes, number_of_networks_per_size, output_directory_path=None):
             matrix = generate_steady_state_matrix(initial_state, rules)
             write_graph_to_file(funs, file_path + "original_network.txt")
             write_matrix_to_file(matrix, file_path + "_output_matrix.csv")
+    return 0
     # end of run()
 
 """
@@ -209,8 +212,7 @@ method          - method used for generation of scale-free network
                                                    for each edge, direction
                                                    is randomly chosen
 """
-def create_scale_free_network_with_rules(number_of_nodes, method="scf"):
-    m=2
+def create_scale_free_network(number_of_nodes, method="scf"):
     if method == "scf":
         # generate directed scale-free graph
         H = scale_free_graph(number_of_nodes, alpha=0.41,
@@ -229,16 +231,21 @@ def create_scale_free_network_with_rules(number_of_nodes, method="scf"):
             if s == t:
                 H.remove_edge(s, t)
     elif method == "ba":
-        G = dual_barabasi_albert(number_of_nodes, m1=m, m2=1, p=0.6,
-                                 initial_graph=complete_graph(m+2)))
+        m=2
+        G = dual_barabasi_albert_graph(number_of_nodes, m1=m, m2=1, p=0.6,
+                                 initial_graph=complete_graph(m+2))
         H = DiGraph()
         H.add_nodes_from(G)
         for edge in G.edges():
-        s, t = edge
+            s, t = edge
         if random() < 0.5:
             H.add_edge(s, t)
         else:
             H.add_edge(t, s)
+    return H
+
+
+def generate_rules(H):
     # create table of update rules represented as list of lists of tuples
     rules = [[] for _ in range(H.number_of_nodes())]  # [[(node_index, Im, Om)]]
     # specify Im and Om to the update rules -> randomly generate Im and Om
@@ -250,7 +257,7 @@ def create_scale_free_network_with_rules(number_of_nodes, method="scf"):
     shuffle_argumentsOfUpdate_rules(rules)
     # draw(H, with_labels=True)
     # plt.show()
-    return H, rules
+    return rules
 
 
 """
@@ -320,4 +327,19 @@ def write_graph_to_file(funs, file_path):
 # cycle = simulation(rules, tuple_initial_state)[-1]
 # print(len(cycle), cycle)
 # print(tuple(initial_state) == cycle[0])
-                      
+def main():
+    args = sys.argv
+    print(args)
+    if len(args) != 4:
+        print("wrong number of arguments:", len(args)-1, "expected 3")
+        return 1
+    network_sizes = [int(i) for i in args[1].split(",")]
+    number_of_networks_per_size = [int(i) for i in args[2].split(",")]
+    output_directory_path = args[3]
+    return run(network_sizes, number_of_networks_per_size, output_directory_path)
+    
+
+
+if __name__=='__main__':
+    sys.exit(main())
+    
