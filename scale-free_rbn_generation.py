@@ -186,11 +186,12 @@ def run(network_sizes, number_of_networks_per_size, output_directory_path=None):
         size = network_sizes[i]
         number_of_networks = number_of_networks_per_size[i]
 
-        size_dir_path = output_directory_path + "\\size" + str(size)
+        size_dir_path = output_directory_path + "\\Size" + str(size)
         if not os.path.isdir(size_dir_path):
             os.mkdir(size_dir_path)
         for j in range(number_of_networks):
-            file_path = size_dir_path + "\\rbn" + str(j)
+            file_path = size_dir_path + "\\Size" + str(size) +\
+                        "_RBN" + str(j)
             #print(file_path)
             H = create_scale_free_network(size)
             rules = generate_rules(H)
@@ -204,8 +205,8 @@ def run(network_sizes, number_of_networks_per_size, output_directory_path=None):
             if initial_state is None:
                 return
             matrix = generate_steady_state_matrix(initial_state, rules)
-            write_graph_to_file(funs, file_path + "_original_network.txt")
-            write_matrix_to_file(matrix, file_path + "_output_matrix.csv")
+            write_graph_to_file(funs, file_path + "_goldstandard_signed.tsv")
+            write_matrix_to_file(matrix, file_path + "_knockouts.tsv.bool.csv")
     return 0
     # end of run()
 
