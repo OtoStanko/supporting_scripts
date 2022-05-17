@@ -107,7 +107,6 @@ def plot_results():
 
 
 
-# main(r"D:\MUNI\FI\_bc\genericalgorithmbackup\CGAProj\CGA-BNI-main\data\outputs.txt")
 def main(output_file_path):
     global network_times, iters_time, iters_num, states_req, states_gen, states_met, states_tim, networks
     networks = []
@@ -123,9 +122,7 @@ def main(output_file_path):
             parse_line(line)
         parse_line("KO File")
         networks.remove(([], [], [], [], [], [], []))
-    #for key, value in results.items():
-        #print(key, value)
-    #plot_results()
+
 
 
 def print_states_results_all():
@@ -138,8 +135,8 @@ def print_states_results_all():
     get_initial_states_results("_new_all")
 
 
-def get_initial_states_results(sufix):
-    main(r"D:\MUNI\FI\_bc\genericalgorithmbackup\CGAProj\CGA-BNI-main\data\outputs" + sufix + ".txt")
+def get_initial_states_results(filepath, sufix):
+    main(filepath)
     networks_times_sum = []
     states_sum = []
     for network in networks:
@@ -192,8 +189,8 @@ def sim_time_per_iter():
         print("iters:", network[2][0], network[2][0])
         print(sum(network[1])/sum(network[2]))
 
-def sim_time_per_iter_per_n(sufix=""):
-    main(r"D:\MUNI\FI\_bc\genericalgorithmbackup\CGAProj\CGA-BNI-main\data\outputs" +sufix+ ".txt")
+def sim_time_per_iter_per_n(filepath, sufix=""):
+    main(filepath)
     sum_times = 0
     sum_iters = 0
     all_times = []
