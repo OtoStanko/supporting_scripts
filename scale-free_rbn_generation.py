@@ -137,14 +137,13 @@ def simulation(rules, initial_state, const=None, value=None):
     visited = [initial_state]
     n_nodes = len(rules)
     actual_state = initial_state
-    #print()
     while True:
         new_state = []
         for i in range(n_nodes):  # for each node compute new state
             if i == const:
                 new_state.append(value)
                 continue
-            if rules[i] == []:
+            if not rules[i]:
                 new_state.append(actual_state[i])
                 continue
             flag = False
@@ -176,6 +175,10 @@ number_of_networks_per_size - number of networks to create of given number of no
 file_path = r"D:\MUNI\FI\_bc\supporting_scripts"
 # run([5, 11], [1, 2], r"D:\MUNI\FI\_bc\supporting_scripts")
 # 5,11 1,2 D:\\MUNI\\FI\\_bc\\supporting_scripts
+# 50,100,150,200 25,25,25,25 D:\\MUNI\\FI\\_bc\\supporting_scripts
+# 10,20 5,5 D:\\MUNI\\FI\\_bc\\supporting_scripts
+# 15 40 D:\\MUNI\\FI\\_bc\\supporting_scripts
+# 100 1 D:\\MUNI\\FI\\_bc\\supporting_scripts
 def run(network_sizes, number_of_networks_per_size, output_directory_path=None):
 
     if len(network_sizes) != len(number_of_networks_per_size):
@@ -186,13 +189,16 @@ def run(network_sizes, number_of_networks_per_size, output_directory_path=None):
         size = network_sizes[i]
         number_of_networks = number_of_networks_per_size[i]
 
-        size_dir_path = output_directory_path + "\\size" + str(size)
+        size_dir_path = output_directory_path + "\\Size" + str(size)
         if not os.path.isdir(size_dir_path):
             os.mkdir(size_dir_path)
+        method = "scf"
         for j in range(number_of_networks):
-            file_path = size_dir_path + "\\rbn" + str(j)
-            #print(file_path)
-            H = create_scale_free_network(size)
+            if j >= number_of_networks:
+                method = "ba"
+            file_path = size_dir_path + "\\Size" + str(size) +\
+                        "_RBN" + str(j)
+            H = create_scale_free_network(size, method)
             rules = generate_rules(H)
             n = [Bool("n" + str(i)) for i in range(H.number_of_nodes())]
 
@@ -202,10 +208,10 @@ def run(network_sizes, number_of_networks_per_size, output_directory_path=None):
 
             initial_state = find_steady_state(funs, n)
             if initial_state is None:
-                return
+                continue
             matrix = generate_steady_state_matrix(initial_state, rules)
-            write_graph_to_file(funs, file_path + "_original_network.txt")
-            write_matrix_to_file(matrix, file_path + "_output_matrix.csv")
+            write_graph_to_file(funs, file_path + "_goldstandard_signed.tsv")
+            write_matrix_to_file(matrix, file_path + "_knockouts.tsv.bool.csv")
     return 0
     # end of run()
 
@@ -220,8 +226,8 @@ method          - method used for generation of scale-free network
 def create_scale_free_network(number_of_nodes, method="scf"):
     if method == "scf":
         # generate directed scale-free graph
-        H = scale_free_graph(number_of_nodes, alpha=0.41,
-                             beta=0.54, gamma=0.05, delta_in=0.2,
+        H = scale_free_graph(number_of_nodes, alpha=0.05,
+                             beta=0.35, gamma=0.6, delta_in=0.2,
                              delta_out=0, create_using=None,
                              seed=None)
         # above function generates duplicate edges as well as self-loops
@@ -299,7 +305,6 @@ def generate_steady_state_matrix(initial_state, rules):
                                          tuple_initial_state,
                                          i,
                                          1*(1-initial_state[i]))
-            #print(simulation_path)
             if simulation_path[-1] == simulation_path[-2]:
                 matrix.append( (i, simulation_path[-1]) )
             else:
@@ -313,21 +318,29 @@ def generate_steady_state_matrix(initial_state, rules):
 def write_matrix_to_file(matrix, file_path):
     with open(file_path, "w") as f:
         for index, line in matrix:
-            print(str(index) + ", " + str(line)[1:-1], file=f)
+            if index == -1:
+                print(str(index) + ",0," + str(line)[1:-1].replace(" ", ""), file=f)
+            else:
+                print(plus1(index) + ",0," + str(line)[1:-1].replace(" ", ""), file=f)
+
+
+def plus1(n):
+    return str(int(n)+1)
 
 
 # writing graph's topology to the file given by path
 def write_graph_to_file(funs, file_path):
+    space = "\t"
     with open(file_path, "w") as f:
         for fun in funs:
             neg = re.findall(r'Not\(n\[(\d*)\]\)', fun)
             pos = re.findall(r'n\[(\d*)\]', fun)
             tg = pos[0]
             for sg in neg:
-                print(str(sg) + "   " + str(tg) + " " + "-", file=f)
+                print("G" + plus1(sg) + space + "G" + plus1(tg) + space + "-", file=f)
             for sg in pos[1:]:
                 if sg not in neg:
-                    print(str(sg) + "   " + str(tg) + " " + "+", file=f)
+                    print("G" + plus1(sg) + space + "G" + plus1(tg) + space + "+", file=f)
             
 # cycle = simulation(rules, tuple_initial_state)[-1]
 # print(len(cycle), cycle)
