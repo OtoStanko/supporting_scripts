@@ -3,9 +3,6 @@ from networkx import scale_free_graph, draw, dual_barabasi_albert_graph, complet
 from random import shuffle, random
 import re
 import sys
-#import converters as conv
-#from sympy import symbols, true, false
-#from sympy.logic import And, Or, Not, simplify_logic
 from z3 import *
 
 
@@ -32,6 +29,7 @@ exa_funs_simple = ["A = A", "B = A", "C = ~A", "D = A",
 exa_input_nodes = [5, 9]
 exa_output_nodes = [6, 7]'''
 
+file_path = r"C:\dir1\dir2\supporting_scripts"
 
 
 """
@@ -172,13 +170,6 @@ network_sizes - list/range of sizes of networks to create e.g. [10, 20, 30, 40, 
 number_of_networks_per_size - number of networks to create of given number of nodes
                               should be as long as network_sizes
 """
-file_path = r"D:\MUNI\FI\_bc\supporting_scripts"
-# run([5, 11], [1, 2], r"D:\MUNI\FI\_bc\supporting_scripts")
-# 5,11 1,2 D:\\MUNI\\FI\\_bc\\supporting_scripts
-# 50,100,150,200 25,25,25,25 D:\\MUNI\\FI\\_bc\\supporting_scripts
-# 10,20 5,5 D:\\MUNI\\FI\\_bc\\supporting_scripts
-# 15 40 D:\\MUNI\\FI\\_bc\\supporting_scripts
-# 100 1 D:\\MUNI\\FI\\_bc\\supporting_scripts
 def run(network_sizes, number_of_networks_per_size, output_directory_path=None):
 
     if len(network_sizes) != len(number_of_networks_per_size):
@@ -266,8 +257,6 @@ def generate_rules(H):
         Om = int(2*random())
         rules[t].append((s, Im, Om))
     shuffle_argumentsOfUpdate_rules(rules)
-    # draw(H, with_labels=True)
-    # plt.show()
     return rules
 
 
@@ -284,7 +273,6 @@ def find_steady_state(funs, n):
         model = s.model()  # model = steady state
         for node in n:
             initial_state.append(model[node])
-            #print(str(node) + " = " + str(model[node]))
     else:
         print("Steady state does not exist")
         return None
@@ -341,10 +329,9 @@ def write_graph_to_file(funs, file_path):
             for sg in pos[1:]:
                 if sg not in neg:
                     print("G" + plus1(sg) + space + "G" + plus1(tg) + space + "+", file=f)
+
             
-# cycle = simulation(rules, tuple_initial_state)[-1]
-# print(len(cycle), cycle)
-# print(tuple(initial_state) == cycle[0])
+
 def main():
     args = sys.argv
     print(args)
